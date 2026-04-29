@@ -66,7 +66,7 @@ Engineers picked up Jira stories and used **Claude Code** to implement each feat
 
 ## 💬 Prompts Used in This Project
 
-One of the goals of this demo is to show how much Claude can do by itself. I'm not using any claude.md file or skills to control the generated output. Let's see how far it goes.  
+One of the goals of this demo is to show how much Claude can do by itself. I'm not using any skills to control the generated output. Let's see how far it goes.  
 
 ---
 
