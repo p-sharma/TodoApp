@@ -64,6 +64,101 @@ Engineers picked up Jira stories and used **Claude Code** to implement each feat
 
 ---
 
+## 💬 Prompts Used in This Project
+
+One of the goals of this demo is to show how much Claude can do by itself. I'm not using any claude.md file or skills to control the generated output. Let's see how far it goes.  
+
+---
+
+### Step 1 — Describe the app idea
+
+> *"I want to make a single screen daily TODO app. User will be allowed to add remove todo items. Every night it will remind user to create a new TODO list. User should not be allowed to copy items from previous day todo, they will have to enter it manually every day."*
+
+Claude responded by generating a full set of epics and user stories unprompted.
+
+---
+
+### Step 2 — Ask Claude to fill in the gaps
+
+> *"Based on my initial app idea, ask me some clarifying questions to create a product requirement document. You can ask for things that should be there in the app but i overlooked."*
+
+Claude presented an interactive questionnaire covering task completion, reset behavior, editing, limits, reordering, onboarding, reminders, and widgets.
+
+---
+
+### Step 3 — Resolve open questions iteratively
+
+> *"OQ-01 - history view should show completion rate."*
+> *"OQ-02- No heptic feedback on version 1"*
+
+Claude updated the PRD and moved those items to a Resolved section automatically.
+
+---
+
+### Step 4 — Push the PRD to Notion
+
+> *"I want to put this PRD in Notion app. How do i do it?"*
+
+After connecting the Notion integration:
+
+> *"create the PRD in notion"*
+
+Then:
+
+> *"Create a Products page and move the document in it"*
+
+---
+
+### Step 5 — Test tool connectivity
+
+> *"how do i make claude check connectivity to notion."*
+
+> *"Now lets test connectivity to JIRA"*
+
+---
+
+### Step 6 — Set up Jira and generate tickets
+
+> *"Create a project for me in JIRA with key DTA"*
+
+After manually creating the project in Jira:
+
+> *"I have created the Project in JIRA. Apparently it is called Spaces rather than Project. Read the PRD and create all epics and stories"*
+
+---
+
+### Step 7 — Plan the sprint
+
+> *"How do i proceed to start development based on the stories created"*
+
+> *"yes"* *(to set up Sprint 1 in Jira)*
+
+---
+
+### Step 8 — Track progress during development
+
+> *"Mark DTA-25 as Done in Jira"*
+
+> *"dta 27 and 28 are done"*
+
+> *"dta 30 is done and 31 is in progress"*
+
+Claude transitioned each ticket directly in Jira from plain English instructions.
+
+---
+
+### Step 9 — Generate repo documentation
+
+> *"Based on the work done make a README.md file that i can add in the repository"*
+
+> *"I dont want to have all technical details in the README file. I basically want to stress that the app was created as a demo showing the worflow between Notion, Claude and JIRA. And subsequently using claude to geterate code based on user stories."*
+
+---
+
+**Key takeaway:** Most of these prompts are short, casual, and imprecise — yet Claude understood the intent at every step. That's the point of this demo.
+
+---
+
 ## 💡 Why This Matters
 
 Traditional product development involves a lot of manual, repetitive work — writing tickets, updating statuses, copying requirements into code comments. This demo shows that Claude can automate that entire layer, letting product owners focus on decisions and engineers focus on building.
