@@ -1,11 +1,15 @@
 package com.example.todoapp.data
 
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class TodoRepository @Inject constructor(private val dao: TodoDao) {
+class TodoRepository @Inject constructor(
+    private val dao: TodoDao,
+    private val historyDao: HistoryDao
+) {
 
     fun getTasksForDate(date: String): Flow<List<TodoTask>> = dao.getTasksForDate(date)
 
@@ -27,5 +31,25 @@ class TodoRepository @Inject constructor(private val dao: TodoDao) {
 
     suspend fun updateSortOrders(tasks: List<TodoTask>) {
         dao.updateAll(tasks.mapIndexed { index, task -> task.copy(sortOrder = index) })
+    }
+
+    suspend fun archiveAndClearOldTasks(today: String) {
+        val dates = dao.getDistinctDatesBeforeToday(today)
+        for (date in dates) {
+            val tasks = dao.getTasksForDateOnce(date)
+            if (tasks.isNotEmpty()) {
+                historyDao.insertAll(tasks.map { task ->
+                    TaskHistory(
+                        date = date,
+                        taskText = task.text,
+                        isCompleted = task.isCompleted,
+                        sortOrder = task.sortOrder
+                    )
+                })
+            }
+        }
+        dao.deleteAllTasksBeforeToday(today)
+        val cutoff = LocalDate.parse(today).minusDays(30).toString()
+        historyDao.deleteOlderThan(cutoff)
     }
 }

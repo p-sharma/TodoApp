@@ -23,4 +23,13 @@ interface TodoDao {
 
     @Delete
     suspend fun delete(task: TodoTask)
+
+    @Query("SELECT * FROM daily_tasks WHERE createdDate = :date ORDER BY sortOrder ASC")
+    suspend fun getTasksForDateOnce(date: String): List<TodoTask>
+
+    @Query("SELECT DISTINCT createdDate FROM daily_tasks WHERE createdDate < :today")
+    suspend fun getDistinctDatesBeforeToday(today: String): List<String>
+
+    @Query("DELETE FROM daily_tasks WHERE createdDate < :today")
+    suspend fun deleteAllTasksBeforeToday(today: String)
 }

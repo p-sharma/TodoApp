@@ -5,6 +5,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
+import com.example.todoapp.data.HistoryDao
+import com.example.todoapp.data.MIGRATION_1_2
 import com.example.todoapp.data.TodoDao
 import com.example.todoapp.data.TodoDatabase
 import dagger.Module
@@ -25,10 +27,15 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): TodoDatabase =
-        Room.databaseBuilder(context, TodoDatabase::class.java, "todo_database").build()
+        Room.databaseBuilder(context, TodoDatabase::class.java, "todo_database")
+            .addMigrations(MIGRATION_1_2)
+            .build()
 
     @Provides
     fun provideDao(database: TodoDatabase): TodoDao = database.todoDao()
+
+    @Provides
+    fun provideHistoryDao(database: TodoDatabase): HistoryDao = database.historyDao()
 
     @Provides
     @Singleton
