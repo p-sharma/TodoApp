@@ -38,8 +38,20 @@ data class PatternStats(
 data class StreakStats(
     val currentStreak: Int,
     val longestStreak: Int,
-    val activeDaysLast30: Int
+    val activeDaysLast30: Int,
+    val heatmapDays: List<HeatmapDay>,
+    val heatmapMinRate: Float,
+    val heatmapMaxRate: Float
 )
+
+data class HeatmapDay(
+    val date: LocalDate,
+    val totalTasks: Int,
+    val completedTasks: Int
+) {
+    val hasData: Boolean get() = totalTasks > 0
+    val completionRate: Float get() = if (totalTasks > 0) completedTasks.toFloat() / totalTasks else 0f
+}
 
 data class DashboardData(
     val daysTracked: Int,
@@ -63,6 +75,8 @@ class DashboardViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState.Loading)
 
     private fun compute(history: List<TaskHistory>): DashboardData {
+        val (heatmapDays, heatmapMinRate, heatmapMaxRate) = computeHeatmap(history)
+
         if (history.isEmpty()) {
             return DashboardData(
                 daysTracked = 0,
@@ -71,7 +85,7 @@ class DashboardViewModel @Inject constructor(
                     byDayOfWeek = DayOfWeek.entries.map { DayOfWeekStat(it, 0, 0, 0f) },
                     mostProductiveDay = null
                 ),
-                streaks = StreakStats(0, 0, 0)
+                streaks = StreakStats(0, 0, 0, heatmapDays, heatmapMinRate, heatmapMaxRate)
             )
         }
 
@@ -132,7 +146,7 @@ class DashboardViewModel @Inject constructor(
             daysTracked = daysTracked,
             overview = OverviewStats(total60, completed60, completionRate60, avgTasksPerDay60, mostProductiveDay60, leastProductiveDay60),
             patterns = PatternStats(dowStats, mostProductiveDay),
-            streaks = StreakStats(currentStreak, longestStreak, activeLast30)
+            streaks = StreakStats(currentStreak, longestStreak, activeLast30, heatmapDays, heatmapMinRate, heatmapMaxRate)
         )
     }
 
@@ -162,5 +176,31 @@ class DashboardViewModel @Inject constructor(
             }
         }
         return longest
+    }
+
+    private fun computeHeatmap(history: List<TaskHistory>): Triple<List<HeatmapDay>, Float, Float> {
+        val today = LocalDate.now()
+        // Window: Monday of the week 11 weeks before current week → 12 full weeks (84 days)
+        val startDate = today.with(DayOfWeek.MONDAY).minusWeeks(11)
+        val historyByDate = history.groupBy { it.date }
+
+        val days = (0 until 84).map { i ->
+            val date = startDate.plusDays(i.toLong())
+            val entries = historyByDate[date.toString()] ?: emptyList()
+            HeatmapDay(
+                date = date,
+                totalTasks = entries.size,
+                completedTasks = entries.count { it.isCompleted }
+            )
+        }
+
+        // Adaptive scale is derived from ALL available history, not just the 12-week window
+        val allDayRates = historyByDate.values
+            .map { entries -> entries.count { it.isCompleted }.toFloat() / entries.size }
+
+        val minRate = allDayRates.minOrNull() ?: 0f
+        val maxRate = allDayRates.maxOrNull() ?: 1f
+
+        return Triple(days, minRate, maxRate)
     }
 }

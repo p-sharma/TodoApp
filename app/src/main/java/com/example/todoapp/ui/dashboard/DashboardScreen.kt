@@ -2,9 +2,11 @@ package com.example.todoapp.ui.dashboard
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -41,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -48,11 +52,14 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.DayOfWeek
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -438,6 +445,13 @@ private fun StreaksTab(data: DashboardData) {
                 )
             }
         }
+
+        Text("12-Week Completion", style = MaterialTheme.typography.titleSmall)
+        CompletionHeatmap(
+            days = streaks.heatmapDays,
+            minRate = streaks.heatmapMinRate,
+            maxRate = streaks.heatmapMaxRate
+        )
     }
 }
 
@@ -469,6 +483,110 @@ private fun StreakCard(value: String, label: String, unit: String, modifier: Mod
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 textAlign = TextAlign.Center
             )
+        }
+    }
+}
+
+@Composable
+private fun CompletionHeatmap(
+    days: List<HeatmapDay>,
+    minRate: Float,
+    maxRate: Float
+) {
+    if (days.isEmpty()) return
+
+    val weeks = days.chunked(7)
+    val monthFormatter = remember { DateTimeFormatter.ofPattern("MMM") }
+    val descFormatter = remember { DateTimeFormatter.ofPattern("MMMM d") }
+
+    val primary = MaterialTheme.colorScheme.primary
+    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+
+    val labelWidthDp = 16.dp
+    val gapDp = 2.dp
+
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        // 12 cells + 11 inter-cell gaps + 1 gap after label column
+        val cellSize = (maxWidth - labelWidthDp - gapDp * 12) / 12
+
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            // Month labels row — one label per week column, shown at first week of each month
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Spacer(Modifier.width(labelWidthDp + gapDp))
+                weeks.forEachIndexed { weekIdx, week ->
+                    val label: String? = if (weekIdx == 0) {
+                        week.first().date.format(monthFormatter)
+                    } else {
+                        week.firstOrNull { it.date.dayOfMonth == 1 }?.date?.format(monthFormatter)
+                    }
+                    Box(modifier = Modifier.width(cellSize + if (weekIdx < 11) gapDp else 0.dp)) {
+                        if (label != null) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Heatmap grid
+            Row(modifier = Modifier.fillMaxWidth()) {
+                // Day-of-week labels: show M, W, F only to avoid crowding
+                val dowLabels = listOf("M", "", "W", "", "F", "", "S")
+                Column(modifier = Modifier.width(labelWidthDp)) {
+                    dowLabels.forEachIndexed { i, label ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(cellSize),
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            if (label.isNotEmpty()) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = onSurfaceVariant
+                                )
+                            }
+                        }
+                        if (i < 6) Spacer(Modifier.height(gapDp))
+                    }
+                }
+                Spacer(Modifier.width(gapDp))
+                // Week columns
+                weeks.forEachIndexed { weekIdx, week ->
+                    Column(modifier = Modifier.width(cellSize)) {
+                        week.forEachIndexed { dowIdx, day ->
+                            val normalizedRate = when {
+                                !day.hasData -> 0f
+                                maxRate > minRate -> (day.completionRate - minRate) / (maxRate - minRate)
+                                else -> 1f
+                            }
+                            val bgColor = if (day.hasData) {
+                                primary.copy(alpha = 0.2f + normalizedRate * 0.8f)
+                            } else {
+                                surfaceVariant
+                            }
+                            val taskText = if (!day.hasData) "no tasks"
+                                          else "${day.completedTasks} of ${day.totalTasks} task${if (day.totalTasks != 1) "s" else ""} completed"
+                            val cellDesc = "${day.date.format(descFormatter)} — $taskText"
+
+                            Box(
+                                modifier = Modifier
+                                    .size(cellSize)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(bgColor)
+                                    .semantics { contentDescription = cellDesc }
+                            )
+                            if (dowIdx < 6) Spacer(Modifier.height(gapDp))
+                        }
+                    }
+                    if (weekIdx < 11) Spacer(Modifier.width(gapDp))
+                }
+            }
         }
     }
 }
