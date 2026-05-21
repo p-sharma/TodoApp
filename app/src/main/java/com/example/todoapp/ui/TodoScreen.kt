@@ -23,8 +23,10 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
+import com.example.todoapp.ui.dashboard.DashboardOverlay
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -80,6 +82,7 @@ fun TodoScreen(viewModel: TodoViewModel = hiltViewModel()) {
     val dailyLimit by viewModel.dailyLimit.collectAsStateWithLifecycle()
     var inputText by remember { mutableStateOf("") }
     var showSettings by remember { mutableStateOf(false) }
+    var showDashboard by remember { mutableStateOf(false) }
     var editingTaskId by remember { mutableStateOf<Long?>(null) }
 
     val lazyListState = rememberLazyListState()
@@ -111,11 +114,18 @@ fun TodoScreen(viewModel: TodoViewModel = hiltViewModel()) {
         )
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Today") },
                 actions = {
+                    IconButton(onClick = { showDashboard = true }) {
+                        Icon(
+                            imageVector = Icons.Default.BarChart,
+                            contentDescription = "Open insights dashboard"
+                        )
+                    }
                     IconButton(onClick = { showSettings = true }) {
                         Icon(
                             imageVector = Icons.Default.Settings,
@@ -255,6 +265,10 @@ fun TodoScreen(viewModel: TodoViewModel = hiltViewModel()) {
                 }
             }
         }
+    }
+    if (showDashboard) {
+        DashboardOverlay(onClose = { showDashboard = false })
+    }
     }
 }
 

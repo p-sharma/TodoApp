@@ -13,6 +13,8 @@ class TodoRepository @Inject constructor(
 
     fun getTasksForDate(date: String): Flow<List<TodoTask>> = dao.getTasksForDate(date)
 
+    fun getAllHistory(): Flow<List<TaskHistory>> = historyDao.getAllHistory()
+
     suspend fun addTask(text: String, date: String, sortOrder: Int) {
         dao.insert(TodoTask(text = text, createdDate = date, sortOrder = sortOrder))
     }
