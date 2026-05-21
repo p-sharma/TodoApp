@@ -2,9 +2,9 @@ package com.example.todoapp.ui.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.todoapp.data.CategoryMapper
 import com.example.todoapp.data.TaskHistory
 import com.example.todoapp.data.TodoRepository
-import com.google.mlkit.nl.entityextraction.Entity
 import com.google.mlkit.nl.entityextraction.EntityAnnotation
 import com.google.mlkit.nl.entityextraction.EntityExtraction
 import com.google.mlkit.nl.entityextraction.EntityExtractor
@@ -40,7 +40,8 @@ sealed interface PatternsUiState {
 
 @HiltViewModel
 class PatternsViewModel @Inject constructor(
-    private val repository: TodoRepository
+    private val repository: TodoRepository,
+    private val categoryMapper: CategoryMapper
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<PatternsUiState>(PatternsUiState.Loading)
@@ -87,7 +88,7 @@ class PatternsViewModel @Inject constructor(
         extractor: EntityExtractor
     ): List<CategoryStat> {
         val buckets = mutableMapOf<String, MutableList<TaskHistory>>()
-        buckets[OPEN_ENDED] = mutableListOf()
+        buckets[CategoryMapper.OPEN_ENDED] = mutableListOf()
 
         for (task in history) {
             val annotations: List<EntityAnnotation> = try {
@@ -98,12 +99,12 @@ class PatternsViewModel @Inject constructor(
 
             val categories = annotations
                 .flatMap { annotation ->
-                    annotation.getEntities().mapNotNull { entity -> entityToCategory(entity.getType()) }
+                    annotation.getEntities().mapNotNull { entity -> categoryMapper.entityTypeToCategory(entity.getType()) }
                 }
                 .distinct()
 
             if (categories.isEmpty()) {
-                buckets[OPEN_ENDED]!!.add(task)
+                buckets[CategoryMapper.OPEN_ENDED]!!.add(task)
             } else {
                 for (cat in categories) {
                     buckets.getOrPut(cat) { mutableListOf() }.add(task)
@@ -122,15 +123,4 @@ class PatternsViewModel @Inject constructor(
         }.sortedByDescending { it.taskCount }
     }
 
-    private fun entityToCategory(type: Int): String? = when (type) {
-        Entity.TYPE_DATE_TIME -> "Time-bound"
-        Entity.TYPE_EMAIL, Entity.TYPE_URL -> "Communication"
-        Entity.TYPE_ADDRESS -> "Errands"
-        Entity.TYPE_MONEY, Entity.TYPE_IBAN -> "Financial"
-        else -> null
-    }
-
-    companion object {
-        private const val OPEN_ENDED = "Open-ended"
-    }
 }
