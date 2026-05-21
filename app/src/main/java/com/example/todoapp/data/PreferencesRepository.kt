@@ -2,6 +2,7 @@ package com.example.todoapp.data
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -18,6 +19,7 @@ class PreferencesRepository @Inject constructor(
 ) {
     private val dailyLimitKey = intPreferencesKey("daily_limit")
     private val lastResetDateKey = stringPreferencesKey("last_reset_date")
+    private val weeklyInsightEnabledKey = booleanPreferencesKey("weekly_insight_enabled")
 
     val dailyLimit: Flow<Int> = dataStore.data.map { prefs ->
         prefs[dailyLimitKey] ?: DEFAULT_DAILY_LIMIT
@@ -36,6 +38,16 @@ class PreferencesRepository @Inject constructor(
     suspend fun setLastResetDate(date: String) {
         dataStore.edit { prefs ->
             prefs[lastResetDateKey] = date
+        }
+    }
+
+    val weeklyInsightEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[weeklyInsightEnabledKey] ?: true
+    }
+
+    suspend fun setWeeklyInsightEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[weeklyInsightEnabledKey] = enabled
         }
     }
 }

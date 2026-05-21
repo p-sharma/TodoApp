@@ -27,9 +27,12 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
 import com.example.todoapp.ui.dashboard.DashboardOverlay
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Switch
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -76,13 +79,21 @@ import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TodoScreen(viewModel: TodoViewModel = hiltViewModel()) {
+fun TodoScreen(
+    viewModel: TodoViewModel = hiltViewModel(),
+    openDashboardTick: Int = 0
+) {
     val tasks by viewModel.tasks.collectAsStateWithLifecycle()
     val isAtLimit by viewModel.isAtLimit.collectAsStateWithLifecycle()
     val dailyLimit by viewModel.dailyLimit.collectAsStateWithLifecycle()
+    val weeklyInsightEnabled by viewModel.weeklyInsightEnabled.collectAsStateWithLifecycle()
     var inputText by remember { mutableStateOf("") }
     var showSettings by remember { mutableStateOf(false) }
     var showDashboard by remember { mutableStateOf(false) }
+
+    LaunchedEffect(openDashboardTick) {
+        if (openDashboardTick > 0) showDashboard = true
+    }
     var editingTaskId by remember { mutableStateOf<Long?>(null) }
 
     val lazyListState = rememberLazyListState()
@@ -104,13 +115,15 @@ fun TodoScreen(viewModel: TodoViewModel = hiltViewModel()) {
     }
 
     if (showSettings) {
-        LimitSettingsDialog(
+        SettingsDialog(
             currentLimit = dailyLimit,
+            weeklyInsightEnabled = weeklyInsightEnabled,
             onDismiss = { showSettings = false },
             onConfirm = { newLimit ->
                 viewModel.setDailyLimit(newLimit)
                 showSettings = false
-            }
+            },
+            onWeeklyInsightToggle = viewModel::setWeeklyInsightEnabled
         )
     }
 
@@ -450,10 +463,12 @@ private fun InputBar(
 }
 
 @Composable
-private fun LimitSettingsDialog(
+private fun SettingsDialog(
     currentLimit: Int,
+    weeklyInsightEnabled: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (Int) -> Unit
+    onConfirm: (Int) -> Unit,
+    onWeeklyInsightToggle: (Boolean) -> Unit
 ) {
     var input by remember(currentLimit) { mutableStateOf(currentLimit.toString()) }
     val parsed = input.toIntOrNull()
@@ -461,20 +476,44 @@ private fun LimitSettingsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Daily task limit") },
+        title = { Text("Settings") },
         text = {
-            OutlinedTextField(
-                value = input,
-                onValueChange = { new -> input = new.filter { it.isDigit() } },
-                label = { Text("Max tasks per day") },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Done
-                ),
-                keyboardActions = KeyboardActions(onDone = { if (isValid) parsed?.let(onConfirm) }),
-                singleLine = true,
-                isError = !isValid
-            )
+            Column {
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = { new -> input = new.filter { it.isDigit() } },
+                    label = { Text("Max tasks per day") },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(onDone = { if (isValid) parsed?.let(onConfirm) }),
+                    singleLine = true,
+                    isError = !isValid
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Weekly insight",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "Sunday 6 PM summary notification",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = weeklyInsightEnabled,
+                        onCheckedChange = onWeeklyInsightToggle
+                    )
+                }
+            }
         },
         confirmButton = {
             TextButton(onClick = { parsed?.let(onConfirm) }, enabled = isValid) {

@@ -6,6 +6,7 @@ import com.example.todoapp.data.DEFAULT_DAILY_LIMIT
 import com.example.todoapp.data.PreferencesRepository
 import com.example.todoapp.data.TodoRepository
 import com.example.todoapp.data.TodoTask
+import com.example.todoapp.notification.InsightNotificationScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,7 +31,8 @@ const val CHAR_COUNT_WARNING_THRESHOLD = 20
 @HiltViewModel
 class TodoViewModel @Inject constructor(
     private val repository: TodoRepository,
-    private val prefsRepository: PreferencesRepository
+    private val prefsRepository: PreferencesRepository,
+    private val scheduler: InsightNotificationScheduler
 ) : ViewModel() {
 
     private val _today = MutableStateFlow(LocalDate.now().toString())
@@ -46,6 +48,9 @@ class TodoViewModel @Inject constructor(
     val isAtLimit: StateFlow<Boolean> = combine(tasks, dailyLimit) { taskList, limit ->
         taskList.size >= limit
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val weeklyInsightEnabled: StateFlow<Boolean> = prefsRepository.weeklyInsightEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     init {
         viewModelScope.launch { runOnOpenResetCheck() }
@@ -120,6 +125,13 @@ class TodoViewModel @Inject constructor(
         if (limit < 1) return
         viewModelScope.launch {
             prefsRepository.setDailyLimit(limit)
+        }
+    }
+
+    fun setWeeklyInsightEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            prefsRepository.setWeeklyInsightEnabled(enabled)
+            if (enabled) scheduler.schedule() else scheduler.cancel()
         }
     }
 }
