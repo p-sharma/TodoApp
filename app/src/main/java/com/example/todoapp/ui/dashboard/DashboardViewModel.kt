@@ -18,7 +18,9 @@ data class OverviewStats(
     val totalTasks: Int,
     val completedTasks: Int,
     val completionRate: Float,
-    val avgTasksPerDay: Float
+    val avgTasksPerDay: Float,
+    val mostProductiveDay: DayOfWeek?,
+    val leastProductiveDay: DayOfWeek?
 )
 
 data class DayOfWeekStat(
@@ -64,7 +66,7 @@ class DashboardViewModel @Inject constructor(
         if (history.isEmpty()) {
             return DashboardData(
                 daysTracked = 0,
-                overview = OverviewStats(0, 0, 0f, 0f),
+                overview = OverviewStats(0, 0, 0f, 0f, null, null),
                 patterns = PatternStats(
                     byDayOfWeek = DayOfWeek.entries.map { DayOfWeekStat(it, 0, 0, 0f) },
                     mostProductiveDay = null
@@ -73,15 +75,36 @@ class DashboardViewModel @Inject constructor(
             )
         }
 
-        val byDate = history.groupBy { it.date }
-        val sortedDates = byDate.keys.sorted()
+        val sortedDates = history.map { it.date }.distinct().sorted()
         val daysTracked = sortedDates.size
 
-        val total = history.size
-        val completed = history.count { it.isCompleted }
-        val completionRate = if (total > 0) completed.toFloat() / total else 0f
-        val avgTasksPerDay = if (daysTracked > 0) total.toFloat() / daysTracked else 0f
+        // Overview stats are computed over the last 60 days only.
+        val cutoff60 = LocalDate.now().minusDays(60)
+        val history60 = history.filter { !LocalDate.parse(it.date).isBefore(cutoff60) }
+        val daysTracked60 = history60.map { it.date }.distinct().size
 
+        val total60 = history60.size
+        val completed60 = history60.count { it.isCompleted }
+        val completionRate60 = if (total60 > 0) completed60.toFloat() / total60 else 0f
+        val avgTasksPerDay60 = if (daysTracked60 > 0) total60.toFloat() / daysTracked60 else 0f
+
+        val byDow60 = history60.groupBy { LocalDate.parse(it.date).dayOfWeek }
+        val dowStats60 = DayOfWeek.entries.map { dow ->
+            val tasks = byDow60[dow] ?: emptyList()
+            val dowTotal = tasks.size
+            val dowCompleted = tasks.count { it.isCompleted }
+            DayOfWeekStat(
+                dayOfWeek = dow,
+                totalTasks = dowTotal,
+                completedTasks = dowCompleted,
+                completionRate = if (dowTotal > 0) dowCompleted.toFloat() / dowTotal else 0f
+            )
+        }
+        val activeDowStats60 = dowStats60.filter { it.totalTasks > 0 }
+        val mostProductiveDay60 = activeDowStats60.maxByOrNull { it.completionRate }?.dayOfWeek
+        val leastProductiveDay60 = activeDowStats60.minByOrNull { it.completionRate }?.dayOfWeek
+
+        // Patterns and streaks use all available history.
         val byDow = history.groupBy { LocalDate.parse(it.date).dayOfWeek }
         val dowStats = DayOfWeek.entries.map { dow ->
             val tasks = byDow[dow] ?: emptyList()
@@ -102,12 +125,12 @@ class DashboardViewModel @Inject constructor(
         val localDates = sortedDates.map { LocalDate.parse(it) }
         val currentStreak = computeCurrentStreak(localDates)
         val longestStreak = computeLongestStreak(localDates)
-        val cutoff = LocalDate.now().minusDays(30)
-        val activeLast30 = localDates.count { !it.isBefore(cutoff) }
+        val cutoff30 = LocalDate.now().minusDays(30)
+        val activeLast30 = localDates.count { !it.isBefore(cutoff30) }
 
         return DashboardData(
             daysTracked = daysTracked,
-            overview = OverviewStats(total, completed, completionRate, avgTasksPerDay),
+            overview = OverviewStats(total60, completed60, completionRate60, avgTasksPerDay60, mostProductiveDay60, leastProductiveDay60),
             patterns = PatternStats(dowStats, mostProductiveDay),
             streaks = StreakStats(currentStreak, longestStreak, activeLast30)
         )

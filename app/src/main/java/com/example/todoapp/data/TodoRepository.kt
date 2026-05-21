@@ -51,7 +51,7 @@ class TodoRepository @Inject constructor(
             }
         }
         dao.deleteAllTasksBeforeToday(today)
-        val cutoff = LocalDate.parse(today).minusDays(30).toString()
+        val cutoff = LocalDate.parse(today).minusDays(60).toString()
         historyDao.deleteOlderThan(cutoff)
     }
 }

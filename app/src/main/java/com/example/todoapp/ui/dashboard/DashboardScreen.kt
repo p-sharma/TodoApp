@@ -181,7 +181,7 @@ private fun OverviewTab(data: DashboardData) {
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Text("Completion Rate", style = MaterialTheme.typography.titleMedium)
+        Text("Last 60 Days", style = MaterialTheme.typography.titleMedium)
 
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             CompletionRingChart(
@@ -189,14 +189,27 @@ private fun OverviewTab(data: DashboardData) {
                 modifier = Modifier.size(160.dp)
             )
         }
+        StatCard(
+            label = "Overall Completion Rate",
+            value = "%.0f%%".format(stats.completionRate * 100),
+            modifier = Modifier.fillMaxWidth()
+        )
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatCard(label = "Total Tasks", value = stats.totalTasks.toString(), modifier = Modifier.weight(1f))
-            StatCard(label = "Completed", value = stats.completedTasks.toString(), modifier = Modifier.weight(1f))
+            StatCard(label = "Total Tasks Added", value = stats.totalTasks.toString(), modifier = Modifier.weight(1f))
+            StatCard(label = "Avg Tasks / Active Day", value = "%.1f".format(stats.avgTasksPerDay), modifier = Modifier.weight(1f))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatCard(label = "Avg / Day", value = "%.1f".format(stats.avgTasksPerDay), modifier = Modifier.weight(1f))
-            StatCard(label = "Days Tracked", value = data.daysTracked.toString(), modifier = Modifier.weight(1f))
+            StatCard(
+                label = "Most Productive Day",
+                value = stats.mostProductiveDay?.getDisplayName(TextStyle.SHORT, Locale.getDefault()) ?: "–",
+                modifier = Modifier.weight(1f)
+            )
+            StatCard(
+                label = "Least Productive Day",
+                value = stats.leastProductiveDay?.getDisplayName(TextStyle.SHORT, Locale.getDefault()) ?: "–",
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }
