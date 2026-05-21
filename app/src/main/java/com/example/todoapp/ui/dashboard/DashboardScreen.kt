@@ -2,6 +2,7 @@ package com.example.todoapp.ui.dashboard
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +26,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -92,20 +96,24 @@ fun DashboardOverlay(
             }
 
             Box(modifier = Modifier.weight(1f)) {
-                when (val s = state) {
-                    is DashboardUiState.Loading -> {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
+                if (selectedTab == DashboardTab.PATTERNS) {
+                    PatternsTab()
+                } else {
+                    when (val s = state) {
+                        is DashboardUiState.Loading -> {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
                         }
-                    }
-                    is DashboardUiState.Ready -> {
-                        if (s.data.daysTracked < 7) {
-                            EmptyStateContent(s.data.daysTracked)
-                        } else {
-                            when (selectedTab) {
-                                DashboardTab.OVERVIEW -> OverviewTab(s.data)
-                                DashboardTab.PATTERNS -> PatternsTab(s.data)
-                                DashboardTab.STREAKS -> StreaksTab(s.data)
+                        is DashboardUiState.Ready -> {
+                            if (s.data.daysTracked < 7) {
+                                EmptyStateContent(s.data.daysTracked)
+                            } else {
+                                when (selectedTab) {
+                                    DashboardTab.OVERVIEW -> OverviewTab(s.data)
+                                    DashboardTab.STREAKS -> StreaksTab(s.data)
+                                    DashboardTab.PATTERNS -> {}
+                                }
                             }
                         }
                     }
@@ -285,125 +293,95 @@ private fun CompletionRingChart(rate: Float, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun PatternsTab(data: DashboardData) {
-    val patterns = data.patterns
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
-    ) {
-        Text("Completion Rate by Day", style = MaterialTheme.typography.titleMedium)
+private fun PatternsTab(viewModel: PatternsViewModel = hiltViewModel()) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-        DayOfWeekBarChart(
-            stats = patterns.byDayOfWeek,
-            highlightedDay = patterns.mostProductiveDay,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-        )
-
-        patterns.mostProductiveDay?.let { day ->
-            Surface(
-                color = MaterialTheme.colorScheme.primaryContainer,
-                shape = MaterialTheme.shapes.small
-            ) {
-                Text(
-                    text = "Most productive: ${day.getDisplayName(TextStyle.FULL, Locale.getDefault())}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                )
+    when (val state = uiState) {
+        is PatternsUiState.Loading -> {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        "Analyzing task patterns...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-        } ?: Text(
-            text = "No pattern data yet.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Text("Task Volume by Day", style = MaterialTheme.typography.titleMedium)
-
-        patterns.byDayOfWeek.filter { it.totalTasks > 0 }.forEach { stat ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+        }
+        is PatternsUiState.Error -> {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .clickable { viewModel.retry() },
+                contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = stat.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
+                    text = "Couldn't load analysis model. Tap to retry.",
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.width(48.dp)
-                )
-                Text(
-                    text = "${stat.totalTasks} tasks · ${stat.completedTasks} done",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(32.dp)
                 )
             }
         }
+        is PatternsUiState.Ready -> {
+            val sorted = when (state.sortMode) {
+                SortMode.ByFrequency -> state.categories.sortedByDescending { it.taskCount }
+                SortMode.ByCompletionRate -> state.categories.sortedByDescending { it.completionRate }
+            }
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text("Task Categories", style = MaterialTheme.typography.titleMedium)
 
-        if (patterns.byDayOfWeek.none { it.totalTasks > 0 }) {
-            Text(
-                text = "No task data available yet.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    SortMode.entries.forEachIndexed { index, mode ->
+                        SegmentedButton(
+                            selected = state.sortMode == mode,
+                            onClick = { viewModel.setSortMode(mode) },
+                            shape = SegmentedButtonDefaults.itemShape(index, SortMode.entries.size),
+                            label = { Text(mode.label) }
+                        )
+                    }
+                }
+
+                sorted.forEach { cat ->
+                    CategoryCard(cat, modifier = Modifier.fillMaxWidth())
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun DayOfWeekBarChart(
-    stats: List<DayOfWeekStat>,
-    highlightedDay: DayOfWeek?,
-    modifier: Modifier = Modifier
-) {
-    val primary = MaterialTheme.colorScheme.primary
-    val primaryMuted = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-    val track = MaterialTheme.colorScheme.surfaceVariant
-    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
-    val textMeasurer = rememberTextMeasurer()
-    val labelStyle = MaterialTheme.typography.labelSmall.copy(color = onSurfaceVariant)
-
-    Canvas(modifier = modifier) {
-        val labelHeight = 32.dp.toPx()
-        val chartHeight = size.height - labelHeight
-        val barCount = stats.size
-        if (barCount == 0 || chartHeight <= 0f) return@Canvas
-        val totalBarWidth = size.width / barCount
-        val barWidth = totalBarWidth * 0.55f
-        val barStartX = (totalBarWidth - barWidth) / 2f
-
-        stats.forEachIndexed { index, stat ->
-            val x = index * totalBarWidth
-            val barH = chartHeight * stat.completionRate
-            val barTop = chartHeight - barH
-            val barColor = if (stat.dayOfWeek == highlightedDay) primary else primaryMuted
-
-            drawRect(
-                color = track,
-                topLeft = Offset(x + barStartX, 0f),
-                size = Size(barWidth, chartHeight)
-            )
-
-            if (stat.completionRate > 0f) {
-                drawRoundRect(
-                    color = barColor,
-                    topLeft = Offset(x + barStartX, barTop),
-                    size = Size(barWidth, barH),
-                    cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
+private fun CategoryCard(stat: CategoryStat, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = MaterialTheme.shapes.medium
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(stat.name, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "${stat.taskCount} task${if (stat.taskCount != 1) "s" else ""}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-
-            val label = stat.dayOfWeek.name.let { it[0].toString() + it[1].lowercase() }
-            val measured = textMeasurer.measure(label, labelStyle)
-            drawText(
-                measured,
-                topLeft = Offset(
-                    x + totalBarWidth / 2f - measured.size.width / 2f,
-                    chartHeight + 8.dp.toPx()
-                )
+            Text(
+                "%.0f%%".format(stat.completionRate * 100),
+                style = MaterialTheme.typography.headlineSmall
             )
         }
     }
