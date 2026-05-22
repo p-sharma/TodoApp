@@ -74,6 +74,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.todoapp.BuildConfig
 import com.example.todoapp.data.TodoTask
 import kotlin.math.roundToInt
 
@@ -123,7 +124,11 @@ fun TodoScreen(
                 viewModel.setDailyLimit(newLimit)
                 showSettings = false
             },
-            onWeeklyInsightToggle = viewModel::setWeeklyInsightEnabled
+            onWeeklyInsightToggle = viewModel::setWeeklyInsightEnabled,
+            onSeedData = {
+                viewModel.seedDebugData()
+                showSettings = false
+            }
         )
     }
 
@@ -468,7 +473,8 @@ private fun SettingsDialog(
     weeklyInsightEnabled: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit,
-    onWeeklyInsightToggle: (Boolean) -> Unit
+    onWeeklyInsightToggle: (Boolean) -> Unit,
+    onSeedData: () -> Unit = {}
 ) {
     var input by remember(currentLimit) { mutableStateOf(currentLimit.toString()) }
     val parsed = input.toIntOrNull()
@@ -512,6 +518,17 @@ private fun SettingsDialog(
                         checked = weeklyInsightEnabled,
                         onCheckedChange = onWeeklyInsightToggle
                     )
+                }
+                if (BuildConfig.DEBUG) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = onSeedData,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Replace with sample data")
+                    }
                 }
             }
         },

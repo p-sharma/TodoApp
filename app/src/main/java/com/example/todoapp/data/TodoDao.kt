@@ -32,4 +32,7 @@ interface TodoDao {
 
     @Query("DELETE FROM daily_tasks WHERE createdDate < :today")
     suspend fun deleteAllTasksBeforeToday(today: String)
+
+    @Query("DELETE FROM daily_tasks")
+    suspend fun deleteAll()
 }

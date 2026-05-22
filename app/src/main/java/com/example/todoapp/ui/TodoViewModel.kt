@@ -2,10 +2,12 @@ package com.example.todoapp.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.todoapp.BuildConfig
 import com.example.todoapp.data.DEFAULT_DAILY_LIMIT
 import com.example.todoapp.data.PreferencesRepository
 import com.example.todoapp.data.TodoRepository
 import com.example.todoapp.data.TodoTask
+import com.example.todoapp.debug.DebugDataSeeder
 import com.example.todoapp.notification.InsightNotificationScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -32,7 +34,8 @@ const val CHAR_COUNT_WARNING_THRESHOLD = 20
 class TodoViewModel @Inject constructor(
     private val repository: TodoRepository,
     private val prefsRepository: PreferencesRepository,
-    private val scheduler: InsightNotificationScheduler
+    private val scheduler: InsightNotificationScheduler,
+    private val debugDataSeeder: DebugDataSeeder
 ) : ViewModel() {
 
     private val _today = MutableStateFlow(LocalDate.now().toString())
@@ -132,6 +135,13 @@ class TodoViewModel @Inject constructor(
         viewModelScope.launch {
             prefsRepository.setWeeklyInsightEnabled(enabled)
             if (enabled) scheduler.schedule() else scheduler.cancel()
+        }
+    }
+
+    fun seedDebugData() {
+        if (!BuildConfig.DEBUG) return
+        viewModelScope.launch {
+            debugDataSeeder.seed()
         }
     }
 }

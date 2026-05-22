@@ -15,4 +15,7 @@ interface HistoryDao {
 
     @Query("SELECT * FROM task_history ORDER BY date ASC")
     fun getAllHistory(): Flow<List<TaskHistory>>
+
+    @Query("DELETE FROM task_history")
+    suspend fun deleteAll()
 }
